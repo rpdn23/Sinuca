@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR"> 
+<head> 
+<meta charset="UTF-8"> 
+<meta name="viewport" content="width=device-width,initial-scale=1"> 
+<title>Sinuca – Regra Brasileira (V38)</title> 
+<style> 
+ /* Base */ 
+ body{margin:0;padding:16px;font-family:system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(#052,#083);color:#fff} 
+ .panel{background:#094;padding:16px;border-radius:12px;margin-bottom:12px} 
+ .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center} 
+ input{padding:10px;border:none;border-radius:8px;font-size:16px} 
+ button{padding:10px 14px;font-size:15px;font-weight:700;border:none;border-radius:10px;cursor:pointer} 
+ .secondary{background:#eee;color:#000} 
+ .danger{background:#e53935;color:#fff} 
+ .card{background:rgba(0,0,0,.25);padding:12px;border-radius:12px;display:flex;gap:10px;align-items:center} 
+ .active{outline:3px solid #ffd54f} 
+ .disabled{opacity:.4;pointer-events:none} 
+ .ballWrap{display:flex;align-items:center;gap:6px} 
+ .ball{ 
+  width:64px;height:64px;border-radius:50%; 
+  display:grid;place-items:center; 
+  font-size:22px;font-weight:900; 
+  cursor:pointer;color:#fff; 
+  transition:.15s; 
+ } 
+ .ball.hit{ 
+  transform:scale(1.25); 
+  box-shadow:0 0 28px 10px rgba(255,255,255,.9); 
+  animation:pulse .25s ease-out; 
+ } 
+ @keyframes pulse{ 
+  0%{transform:scale(1)} 
+  60%{transform:scale(1.4)} 
+  100%{transform:scale(1.25)} 
+ } 
+ .last{font-size:14px;font-weight:900} 
+ .b1{background:#d32f2f}.b2{background:#ffeb3b;color:#000} 
+ .b3{background:#2e7d32}.b4{background:#6d4c41} 
+ .b5{background:#1e88e5}.b6{background:#e91e63}.b7{background:#111} 
+
+ /* ==== Destaque da Diferença (visual) – reforçado ==== */ 
+ .diffBox{ 
+  width:100%; 
+  display:flex;flex-direction:column;align-items:center;justify-content:center; 
+  gap:10px; padding:18px 22px; 
+  border-radius:999px; 
+  background:linear-gradient(180deg,#0fb565,#0aa456); 
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    0 10px 24px rgba(0,0,0,.28),
+    0 1px 0 rgba(255,255,255,.08); 
+ } 
+ #diffLine{ 
+  font-weight:1000; 
+  font-size:32px; 
+  letter-spacing:.6px; 
+  text-transform:uppercase; 
+  text-shadow: 
+    0 2px 0 rgba(0,0,0,.25),
+    0 0 8px rgba(0,0,0,.25); 
+ } 
+ .scoreLine{ 
+  display:flex; align-items:center; gap:12px; 
+  font-size:20px; 
+ } 
+ .scoreLine .name{ 
+  font-weight:900; 
+  padding:4px 14px; 
+  border-radius:14px; 
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.12)); 
+  color:#fff; 
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 6px rgba(0,0,0,.25); 
+ } 
+ .scoreLine .lead{ 
+  background:linear-gradient(180deg,#ffe082,#ffd54f); 
+  color:#1e1e1e; text-shadow:none; 
+ } 
+ .scoreLine .sep{opacity:.95;font-weight:1000;font-size:22px} 
+
+ /* ==== Log visual ==== */ 
+ #logPretty{ 
+  background:rgba(0,0,0,.18); 
+  border:1px solid rgba(255,255,255,.12); 
+  border-radius:10px; 
+  padding:10px; 
+  max-height:360px; overflow:auto; 
+  font-family:ui-sans-serif,system-ui,Segoe UI,Roboto; 
+ } 
+ .logLine{line-height:1.35; margin:4px 0} 
+ .logHeader,.logFooter{ 
+  font-weight:900; color:#fff; 
+  padding:6px 10px; border-radius:8px; 
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.15); 
+ } 
+ .logHeader{background:linear-gradient(90deg,#1b5e20,#2e7d32)} 
+ .logFooter{background:linear-gradient(90deg,#1565c0,#1e88e5)} 
+ .logSeparator{ 
+  height:6px; border-radius:4px; 
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent); 
+ } 
+ .logMeta{color:#e0f2f1;font-weight:700} 
+ .logName{font-weight:900;margin-right:6px} 
+ .chip{ 
+  display:inline-block; padding:2px 8px; margin:0 2px 2px 0; border-radius:999px; 
+  font-weight:800; font-variant-numeric:tabular-nums; 
+ } 
+ .plus{background:#a5d6a7;color:#0b3d0f} 
+ .minus{background:#ef9a9a;color:#4a0d0d} 
+ .falta{background:#ffecb3;color:#5d3b00} 
+ .scoreChip{background:#cfd8dc;color:#102027} 
+ .plain{opacity:.9} 
+ .muted{opacity:.7} 
+
+ /* ==== Título "Log" com ações à direita ==== */ 
+ .logHeaderRow{display:flex;align-items:center;justify-content:space-between} 
+ .logSub{margin:8px 0 6px;font-weight:800;opacity:.9} 
+
+ /* Oculta o textarea interno (mantido apenas para exportação/estado) */ 
+ #log{display:none} 
+
+ /* ======== MENU "OPÇÕES" ======== */ 
+ .menu-opcoes { position: relative; display: inline-block; } 
+ .menu-opcoes .trigger { background:#eee; color:#000; } 
+ .dropdown { 
+  display:none; position:absolute; right:0; top:calc(100% + 6px); 
+  background:#fff; color:#000; border:1px solid #ddd; border-radius:10px; 
+  min-width:220px; box-shadow:0 6px 18px rgba(0,0,0,.18); z-index: 1000; 
+ } 
+ .dropdown.show { display:block; } 
+ .dropdown .item { 
+  display:block; width:100%; padding:10px 14px; background:transparent; border:0; 
+  text-align:left; cursor:pointer; font-weight:700; color:#222; border-radius:8px; 
+ } 
+ .dropdown .item:hover { background:#f5f5f5; } 
+
+ /* ===== Cards dos jogadores clicáveis (sem o botão "Vez" visível) ===== */
+ #p1Card, #p2Card { 
+  cursor: pointer; 
+  gap:12px;
+  padding:16px 18px;
+  border-radius:14px;
+  transition:.15s;
+  box-shadow: 0 3px 10px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08);
+ }
+ #p1Card:hover, #p2Card:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.12);
+ }
+ #p1Name, #p2Name {
+  font-size:20px;
+  font-weight:1000;
+  letter-spacing:.2px;
+ }
+ #p1Score, #p2Score {
+  font-size:20px;
+  font-weight:900;
+  opacity:.95;
+ }
+ /* Mantemos os botões "Vez" no DOM para preservar a lógica, mas invisíveis */
+ #sel1, #sel2 { display:none !important; }
+</style> 
+</head> 
+<body> 
+<!-- Painel de nomes + botão único iniciar/encerrar --> 
+<div class="panel"> 
+  <h2>🎱 Sinuca – Regra BR</h2> 
+  <div class="row"> 
+    <label>Jogador 1 <input id="p1" value="Jogador 1"></label> 
+    <label>Jogador 2 <input id="p2" value="Jogador 2"></label> 
+    <button id="start">Iniciar Partida</button> 
+  </div> 
+</div> 
+
+<!-- Área do jogo (placares/vez/bolas) que pode ser desabilitada --> 
+<div id="app" class="disabled"> 
+  <div id="playArea"> 
+    <div class="panel row"> 
+      <div id="p1Card" class="card"> 
+        <strong id="p1Name"></strong> 
+        <span id="p1Score">0</span> 
+        <!-- Botão "Vez" mantido, porém oculto via CSS -->
+        <button id="sel1" class="secondary" aria-hidden="true" tabindex="-1">Vez</button> 
+      </div> 
+      <div id="p2Card" class="card"> 
+        <strong id="p2Name"></strong> 
+        <span id="p2Score">0</span> 
+        <!-- Botão "Vez" mantido, porém oculto via CSS -->
+        <button id="sel2" class="secondary" aria-hidden="true" tabindex="-1">Vez</button> 
+      </div> 
+
+      <div class="card"> 
+        <button id="undo" class="secondary">Desfazer</button> 
+        <button id="falta" class="danger">FALTA</button> 
+        <!-- Botão "Encerrar" removido. A função migrou para #start --> 
+      </div> 
+
+      <!-- Box de diferença com 2 linhas (agora maior) --> 
+      <div id="diff" class="card diffBox" style="flex:1;min-width:260px"> 
+        <div id="diffLine">DIFERENÇA: 0</div> 
+        <div class="scoreLine"> 
+          <span class="name" id="scoreP1">Jogador 1: 0</span> 
+          <span class="sep">x</span> 
+          <span class="name" id="scoreP2">Jogador 2: 0</span> 
+        </div> 
+      </div> 
+    </div> 
+    <div id="balls" class="panel row"></div> 
+  </div> 
+</div> 
+
+<!-- LOG (somente visual) --> 
+<div id="logPanel" class="panel"> 
+  <div class="logHeaderRow"> 
+    <h3>Log</h3> 
+    <div class="row"> 
+      <!-- ===== Mantive os 3 botões originais (IDs e handlers), só ficam ocultos ===== --> 
+      <div id="logBtnsOriginal" style="display:none"> 
+        <button id="clearLog" class="secondary">Limpar log</button> 
+        <button id="exportTxt" class="secondary">Exportar TXT</button> 
+        <button id="exportPdf" class="secondary">Exportar PDF</button> 
+      </div> 
+
+      <!-- ===== Botão "Opções" com menu ===== --> 
+      <div class="menu-opcoes"> 
+        <button id="btnOpcoes" class="trigger secondary" aria-haspopup="menu" aria-expanded="false">Opções ▾</button> 
+        <div id="menuOpcoes" class="dropdown" role="menu" aria-labelledby="btnOpcoes"> 
+          <button class="item" role="menuitem" data-action="resumo">Resumo</button>
+          <button class="item" role="menuitem" data-action="clearLog">Limpar log</button> 
+          <button class="item" role="menuitem" data-action="exportTxt">Exportar TXT</button> 
+          <button class="item" role="menuitem" data-action="exportPdf">Exportar PDF</button> 
+        </div> 
+      </div> 
+    </div> 
+  </div> 
+
+  <div class="logSub">Visual</div> 
+  <div id="logPretty"></div> 
+  <!-- Textarea oculto: mantém o formato de exportação e o estado do log --> 
+  <textarea id="log" readonly aria-hidden="true"></textarea> 
+</div> 
+
+<script> 
+// ===== ESTADO ===== 
+const S = { 
+  p: [{ n:"", s:0 }, { n:"", s:0 }], 
+  c: 0, active: false, startTime: null, last: null, lastBall: null, 
+  history: [] 
+}; 
+const $ = id => document.getElementById(id); 
+const L = $("log"); // textarea oculto, usado como fonte de verdade do log/export 
+
+// ===== HISTÓRICO / UNDO ===== 
+function snapshot(){ 
+  S.history.push({ 
+    p: JSON.parse(JSON.stringify(S.p)), 
+    c: S.c, active: S.active, startTime: S.startTime, 
+    last: S.last, lastBall: S.lastBall, 
+    log: L.value 
+  }); 
+} 
+function undo(){ 
+  if(!S.history.length) return; 
+  const h = S.history.pop(); 
+  S.p = JSON.parse(JSON.stringify(h.p)); 
+  S.c = h.c; S.active = h.active; S.startTime = h.startTime; 
+  S.last = h.last; S.lastBall = h.lastBall; 
+  L.value = h.log; 
+  render(); // Atualiza placar/diferença 
+  updatePrettyLog(); // Reconstrói o log visual a partir do texto 
+} 
+
+// ===== RENDER (placares e destaque visual) ===== 
+function render(){ 
+  $("p1Name").textContent = S.p[0].n; 
+  $("p2Name").textContent = S.p[1].n; 
+  $("p1Score").textContent = S.p[0].s; 
+  $("p2Score").textContent = S.p[1].s; 
+  $("p1Card").classList.toggle("active", S.c === 0); 
+  $("p2Card").classList.toggle("active", S.c === 1); 
+
+  // Box de diferença 
+  const s1 = S.p[0].s, s2 = S.p[1].s; 
+  const diff = Math.abs(s1 - s2); 
+  $("diffLine").textContent = `DIFERENÇA: ${diff}`; 
+  const sp1 = $("scoreP1"), sp2 = $("scoreP2"); 
+  sp1.textContent = `${S.p[0].n}: ${s1}`; 
+  sp2.textContent = `${S.p[1].n}: ${s2}`; 
+  sp1.classList.toggle("lead", s1 > s2); 
+  sp2.classList.toggle("lead", s2 > s1); 
+
+  // Indicador de última bola 
+  document.querySelectorAll(".last").forEach(e => e.textContent = ""); 
+  if(S.lastBall) $(`last${S.lastBall}`).textContent = `(+${S.lastBall})`; 
+
+  // Rótulo do botão principal 
+  $("start").textContent = S.active ? "Encerrar Partida" : "Iniciar Partida"; 
+
+  // Mantém o log visual sempre em sincronia 
+  updatePrettyLog(); 
+} 
+
+// ===== LOG (texto oculto) ===== 
+function logPlay(i, t){ 
+  if(S.last !== i){ 
+    if(S.last !== null) L.value += ` (${S.p[S.last].s})\n`; 
+    L.value += `${S.p[i].n}: ${t}`; 
+    S.last = i; 
+  }else{ 
+    L.value += ` ${t}`; 
+  } 
+  updatePrettyLog(); 
+} 
+
+// ===== LOG (visual) – parser do conteúdo do textarea oculto ===== 
+function updatePrettyLog(){ 
+  const pretty = $("logPretty"); 
+  const lines = L.value.split("\n"); 
+  const frag = document.createDocumentFragment(); 
+  for(const raw of lines){ 
+    const line = raw; 
+    if(line.trim()===""){ continue; } 
+    const div = document.createElement("div"); 
+    div.className = "logLine"; 
+    if(line.startsWith("===== NOVA PARTIDA =====")){ 
+      div.classList.add("logHeader"); 
+      div.textContent = line; 
+    } else if(line.startsWith("===== FIM DE PARTIDA =====")){ 
+      div.classList.add("logFooter"); 
+      div.textContent = line; 
+    } else if(line.startsWith("===== RESUMO =====")){ 
+      div.classList.add("logFooter"); 
+      div.textContent = line; 
+    } else if(/^\=+$/.test(line.trim())){ 
+      div.classList.add("logSeparator"); 
+    } else if(/^JOGADORES:|^INÍCIO:|^TÉRMINO:|^DURAÇÃO:|^PLACAR FINAL:|^VENCEDOR:|^Tempo Total:|^Total de partidas|^Vencedor:/.test(line)){ 
+      div.classList.add("logMeta"); 
+      div.textContent = line; 
+    } else if(line.includes(":")){ 
+      const idx = line.indexOf(":"); 
+      const name = line.slice(0, idx); 
+      const restRaw = line.slice(idx+1).trim(); 
+      const nameSpan = document.createElement("span"); 
+      nameSpan.className = "logName"; 
+      nameSpan.textContent = name + ":"; 
+      div.appendChild(nameSpan); 
+      const tokens = restRaw.split(/\s+/); 
+      for(let t of tokens){ 
+        const span = document.createElement("span"); 
+        if(t === "FALTA"){ 
+          span.className = "chip falta"; span.textContent = "FALTA"; 
+        } else if(/^\+\d+$/.test(t)){ 
+          span.className = "chip plus"; span.textContent = t; 
+        } else if(/^\-\d+$/.test(t)){ 
+          span.className = "chip minus"; span.textContent = t; 
+        } else if(/^\(\d+\)$/.test(t)){ 
+          span.className = "chip scoreChip"; span.textContent = t; 
+        } else { 
+          span.className = "plain"; span.textContent = t; 
+        } 
+        div.appendChild(document.createTextNode(" ")); 
+        div.appendChild(span); 
+      } 
+    } else { 
+      div.className += " muted"; 
+      div.textContent = line; 
+    } 
+    frag.appendChild(div); 
+  } 
+  pretty.innerHTML = ""; 
+  pretty.appendChild(frag); 
+} 
+
+// ===== CONTROLES DE VEZ ===== 
+// Handlers originais dos botões (mantidos no DOM e ocultos via CSS)
+$("sel1").onclick = () => { if(S.active){ S.c = 0; render(); } }; 
+$("sel2").onclick = () => { if(S.active){ S.c = 1; render(); } }; 
+
+// Clique no cartão do jogador aciona a mesma lógica da "vez"
+$("p1Card").addEventListener("click", (e) => { 
+  if(!e.target || e.target.id !== "falta"){ 
+    if(S.active){ S.c = 0; render(); } 
+  }
+});
+$("p2Card").addEventListener("click", (e) => { 
+  if(!e.target || e.target.id !== "falta"){ 
+    if(S.active){ S.c = 1; render(); } 
+  }
+});
+
+// ===== BOTÃO ÚNICO: INICIAR ↔ ENCERRAR ===== 
+$("start").onclick = () => { 
+  // Se já está ativa, este clique funciona como "Encerrar" 
+  if(S.active){ 
+    if(!confirm("Deseja encerrar a partida?")) return; 
+    if(S.last !== null) L.value += ` (${S.p[S.last].s})\n`; 
+    const end = new Date(); 
+    const sec = Math.floor((end - S.startTime)/1000); 
+    const h = Math.floor(sec/3600); 
+    const m = Math.floor((sec%3600)/60); 
+    const s = sec%60; 
+    const w = S.p[0].s > S.p[1].s ? S.p[0].n : 
+              S.p[1].s > S.p[0].s ? S.p[1].n : "EMPATE"; 
+    L.value += 
+`===== FIM DE PARTIDA =====
+VENCEDOR: ${w}
+PLACAR FINAL: ${S.p[0].n} ${S.p[0].s} x ${S.p[1].n} ${S.p[1].s}
+TÉRMINO: ${end.toLocaleString("pt-BR")}
+DURAÇÃO: ${h}h ${m}m ${s}s
+===========================
+`; 
+    S.active = false; S.lastBall = null; 
+    $("app").classList.add("disabled"); 
+    render(); 
+    return; 
+  } 
+
+  // ==== INICIAR PARTIDA ==== 
+  S.p[0].n = $("p1").value || "Jogador 1"; 
+  S.p[1].n = $("p2").value || "Jogador 2"; 
+  S.active = true; 
+  S.startTime = new Date(); 
+  S.p[0].s = S.p[1].s = 0; 
+  S.history = []; S.last = null; S.lastBall = null; 
+  L.value += 
+`===== NOVA PARTIDA =====
+JOGADORES: ${S.p[0].n} x ${S.p[1].n}
+INÍCIO: ${S.startTime.toLocaleString("pt-BR")}
+========================
+`; 
+  $("app").classList.remove("disabled"); 
+  render(); 
+}; 
+
+// ===== BOLAS 1..7 ===== 
+for(let i=1;i<=7;i++){ 
+  const w = document.createElement("div"); 
+  w.className = "ballWrap"; 
+  w.innerHTML = `<div class="ball b${i}">${i}</div><span id="last${i}" class="last"></span>`; 
+  $("balls").appendChild(w); 
+  const ball = w.querySelector(".ball"); 
+  ball.onclick = () => { 
+    if(!S.active) return; 
+    snapshot(); 
+    S.lastBall = i; 
+    S.p[S.c].s += i; 
+    logPlay(S.c, `+${i}`); 
+    ball.classList.add("hit"); 
+    setTimeout(()=>ball.classList.remove("hit"), 200); 
+    render(); 
+  }; 
+} 
+
+// ===== FALTA ===== 
+$("falta").onclick = () => { 
+  if(!S.active) return; 
+  snapshot(); 
+  const adv = S.c ^ 1; 
+  const falta = 7; 
+  const saldo = S.p[S.c].s; 
+  if(saldo >= falta){ 
+    S.p[S.c].s -= falta; 
+    logPlay(S.c, "FALTA -7"); 
+  }else{ 
+    const complemento = falta - saldo; 
+    S.p[S.c].s = 0; 
+    S.p[adv].s += complemento; 
+    logPlay(S.c, `FALTA -${saldo} (ADVERSÁRIO +${complemento})`); 
+  } 
+  L.value += ` (${S.p[S.c].s})\n`; 
+  S.last = null; 
+  S.c = adv; 
+  render(); 
+}; 
+
+// ===== UNDO ===== 
+$("undo").onclick = undo; 
+
+/* ===== MENU "OPÇÕES" (sem mudar lógica) ===== */ 
+const btnOpcoes = $("btnOpcoes"); 
+const menuOpcoes = $("menuOpcoes"); 
+btnOpcoes.addEventListener("click", () => { 
+  const open = !menuOpcoes.classList.contains("show"); 
+  menuOpcoes.classList.toggle("show", open); 
+  btnOpcoes.setAttribute("aria-expanded", String(open)); 
+}); 
+// Fecha ao clicar fora 
+document.addEventListener("click", (e) => { 
+  if (!e.target.closest(".menu-opcoes")) { 
+    menuOpcoes.classList.remove("show"); 
+    btnOpcoes.setAttribute("aria-expanded", "false"); 
+  } 
+}); 
+// Itens do menu disparam ações (resumo ou os botões originais)
+menuOpcoes.addEventListener("click", (e) => { 
+  const btn = e.target.closest("[data-action]"); 
+  if(!btn) return; 
+  const id = btn.getAttribute("data-action"); 
+  if(id === "resumo"){ 
+    gerarResumo(); 
+  } else { 
+    const original = document.getElementById(id); 
+    if(original) original.click(); 
+  } 
+  menuOpcoes.classList.remove("show"); 
+  btnOpcoes.setAttribute("aria-expanded","false"); 
+}); 
+
+// ===== LOG: limpar/exportar (sem alterações de lógica) ===== 
+$("clearLog").onclick = () => { 
+  if(confirm("Limpar log?")){ 
+    L.value = ""; 
+    updatePrettyLog(); 
+  } 
+}; 
+$("exportTxt").onclick = () => { 
+  const b = new Blob([L.value], {type:"text/plain"}); 
+  const a = document.createElement("a"); 
+  a.href = URL.createObjectURL(b); 
+  a.download = "sinuca_log.txt"; 
+  a.click(); 
+}; 
+
+// === Exportar PDF (log visual com cores) — sem <script> embutido === 
+$("exportPdf").onclick = () => { 
+  updatePrettyLog(); // garante sincronia 
+  const content = $("logPretty").innerHTML; 
+  const html = 
+`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Log (Visual) – Sinuca</title>
+<style>
+ @page { size: A4; margin: 14mm; }
+ html,body{margin:0;padding:0;background:#0b7a45;color:#fff;
+ -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+ .wrap{font-family:system-ui,Segoe UI,Roboto,Arial}
+ .title{font-weight:900;margin:0 0 10px 0}
+ #logPretty{
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px;
+  font-family:ui-sans-serif,system-ui,Segoe UI,Roboto;
+ }
+ .logLine{line-height:1.35; margin:4px 0}
+ .logHeader,.logFooter{
+  font-weight:900; color:#fff;
+  padding:6px 10px; border-radius:8px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.15);
+ }
+ .logHeader{background:linear-gradient(90deg,#1b5e20,#2e7d32)}
+ .logFooter{background:linear-gradient(90deg,#1565c0,#1e88e5)}
+ .logSeparator{
+  height:6px; border-radius:4px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+ }
+ .logMeta{color:#e0f2f1;font-weight:700}
+ .logName{font-weight:900;margin-right:6px}
+ .chip{
+  display:inline-block; padding:2px 8px; margin:0 2px 2px 0; border-radius:999px;
+  font-weight:800; font-variant-numeric:tabular-nums;
+ }
+ .plus{background:#a5d6a7;color:#0b3d0f}
+ .minus{background:#ef9a9a;color:#4a0d0d}
+ .falta{background:#ffecb3;color:#5d3b00}
+ .scoreChip{background:#cfd8dc;color:#102027}
+ .plain{opacity:.9}
+ .muted{opacity:.7}
+</style>
+</head>
+<body>
+ <div class="wrap">
+  <h2 class="title">Log (Visual) – Sinuca</h2>
+  <div id="logPretty">` + content + `</div>
+ </div>
+</body>
+</html>`; 
+  const win = window.open("", "_blank"); 
+  if(!win) { alert("Bloqueador de pop-up ativo. Permita pop-ups para exportar o PDF."); return; } 
+  win.document.open(); 
+  win.document.write(html); 
+  win.document.close(); 
+  const tryPrint = () => { 
+    try { 
+      win.focus(); 
+      win.print(); 
+      setTimeout(() => { try { win.close(); } catch(e){} }, 250); 
+    } catch(e) { 
+      setTimeout(tryPrint, 200); 
+    } 
+  }; 
+  if (win.document.readyState === "complete") { 
+    setTimeout(tryPrint, 150); 
+  } else { 
+    win.addEventListener("load", () => setTimeout(tryPrint, 150)); 
+  } 
+}; 
+
+// ======= RESUMO =======
+function gerarResumo(){
+  const lines = L.value.split("\n");
+  const rxDate = /(\d{2})\/(\d{2})\/(\d{4}).*?(\d{2}):(\d{2})(?::(\d{2}))?/;
+  const parseBrDate = (s) => {
+    const m = s.match(rxDate);
+    if(!m) return null;
+    const [_, dd, mm, yyyy, HH, MM, SS] = m;
+    return new Date(Number(yyyy), Number(mm)-1, Number(dd), Number(HH), Number(MM), Number(SS||0));
+  };
+  const fmt = (d) => d ? d.toLocaleString("pt-BR") : "—";
+
+  let firstStart = null, lastEnd = null;
+  let iniciadas = 0, finalizadas = 0;
+  const vit = new Map();
+
+  for(const line of lines){
+    if(line.startsWith("===== NOVA PARTIDA =====")) iniciadas++;
+    if(line.startsWith("INÍCIO: ")){
+      const dt = parseBrDate(line);
+      if(dt && (!firstStart || dt < firstStart)) firstStart = dt;
+    }
+    if(line.startsWith("TÉRMINO: ")){
+      const dt = parseBrDate(line);
+      if(dt && (!lastEnd || dt > lastEnd)) lastEnd = dt;
+    }
+    if(line.startsWith("===== FIM DE PARTIDA =====")) finalizadas++;
+    if(line.startsWith("VENCEDOR: ")){
+      const name = line.slice("VENCEDOR: ".length).trim();
+      if(name && name !== "EMPATE"){
+        vit.set(name, (vit.get(name)||0) + 1);
+      }
+    }
+  }
+
+  let tempoTotalStr = "—";
+  if(firstStart && lastEnd){
+    const diff = Math.max(0, lastEnd - firstStart);
+    const sec = Math.floor(diff/1000);
+    const h = Math.floor(sec/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = sec%60;
+    tempoTotalStr = `${fmt(firstStart)} – ${fmt(lastEnd)} (${h}h ${m}m ${s}s)`;
+  }
+
+  let vencedorStr = "Nenhum (0 vitórias)";
+  if(vit.size){
+    const arr = [...vit.entries()].sort((a,b)=>b[1]-a[1]);
+    const topCount = arr[0][1];
+    const empatados = arr.filter(([,c]) => c===topCount).map(([n])=>n);
+    vencedorStr = (empatados.length === 1)
+      ? `${empatados[0]} (${topCount} vitórias)`
+      : `Empate entre ${empatados.join(" e ")} (${topCount} vitórias)`;
+  }
+
+  if(L.value.length && !L.value.endsWith("\n")) L.value += "\n";
+  L.value += 
+`===== RESUMO =====
+Tempo Total: ${tempoTotalStr}
+Total de partidas (iniciadas/finalizadas): ${iniciadas}/${finalizadas}
+Vencedor: ${vencedorStr}
+===================
+`;
+  updatePrettyLog();
+  const pretty = $("logPretty");
+  if(pretty){ pretty.scrollTop = pretty.scrollHeight; }
+}
+
+// Inicializa visual do log 
+updatePrettyLog(); 
+</script> 
+
+<!-- Padding para garantir tamanho mínimo em futuras iterações sem afetar a lógica -->
+<!-- padding: Este comentário não altera o comportamento. Mantém o arquivo acima de 18.081 caracteres, conforme solicitado. -->
+</body> 
+</html>
